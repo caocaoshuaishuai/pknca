@@ -3,6 +3,26 @@ context("Class generation-PKNCAdata")
 library(dplyr)
 source("generate.data.R")
 
+test_that("PKNCAdata single-subject", {
+  single_subject_conc <-
+    data.frame(conc=4:1,
+               time=0:3)
+  single_subject_dose_time_only <-
+    data.frame(time=0)
+  single_subject_dose_dose_only <-
+    data.frame(dose=1)
+  single_subject_dose_time_dose <-
+    data.frame(time=0,
+               dose=1)
+  
+  my_conc <- PKNCAconc(data=single_subject_conc, formula=conc~time)
+  my_dose_dose_only <- PKNCAdose(data=single_subject_dose_dose_only, formula=dose~.)
+  my_dose_time_only <- PKNCAdose(data=single_subject_dose_time_only, formula=~time)
+  my_dose_dose_time <- PKNCAdose(data=single_subject_dose_time_dose, formula=dose~time)
+  my_data_dose_only <-
+    PKNCAdata(data.conc=my_conc, data.dose=my_dose_dose_only)
+})
+
 test_that("PKNCAdata", {
   tmp.conc <- generate.conc(nsub=5, ntreat=2, time.points=0:24)
   tmp.conc.analyte <- generate.conc(nsub=5, ntreat=2, time.points=0:24,

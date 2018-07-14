@@ -259,7 +259,7 @@ setDuration.PKNCAconc <- function(object, duration, ...) {
 print.PKNCAconc <- function(x, n=6, summarize=FALSE, ...) {
   cat(sprintf("Formula for concentration:\n "))
   print(stats::formula(x), ...)
-  if (is.na(x$subject)) {
+  if (is.null(x$subject)) {
     cat("As a single-subject dataset.\n")
   } else {
     cat(sprintf("With %d subjects defined in the '%s' column.\n",
@@ -374,30 +374,36 @@ split.PKNCAconc <- function(x, f=getGroups(x), drop=TRUE, ...) {
         do.call(
           paste,
           append(as.list(f), list(sep="\n"))))
-    ret <- split(x=x$data, f=f_new, drop=drop, sep="\n")
-    groupid <- unique(f)
-    ## reorder the output to align with the input grouping order
-    ret.idx <-
-      factor(names(ret),
-             levels=do.call(paste, append(as.list(groupid), list(sep="\n"))),
-             ordered=TRUE)
-    ret <- ret[order(ret.idx)]
-    ## Reset the data in each split to a "data" element within a list.
-    ret <- lapply(ret,
-                  function(y, newclass) {
-                    ret <- list(data=y)
-                    class(ret) <- newclass
-                    ret
-                  },
-                  newclass=class(x))
-    ## Add the other features back into the data
-    for (n in setdiff(names(x), "data")) {
+    if (length(f_new) > 0) {
+      ret <- split(x=x$data, f=f_new, drop=drop, sep="\n")
+      groupid <- unique(f)
+      ## reorder the output to align with the input grouping order
+      ret.idx <-
+        factor(names(ret),
+               levels=do.call(paste, append(as.list(groupid), list(sep="\n"))),
+               ordered=TRUE)
+      ret <- ret[order(ret.idx)]
+      ## Reset the data in each split to a "data" element within a list.
       ret <- lapply(ret,
-                    function(x, name, value) {
-                      x[[name]] <- value
-                      x
+                    function(y, newclass) {
+                      ret <- list(data=y)
+                      class(ret) <- newclass
+                      ret
                     },
-                    name=n, value=x[[n]])
+                    newclass=class(x))
+      ## Add the other features back into the data
+      for (n in setdiff(names(x), "data")) {
+        ret <- lapply(ret,
+                      function(x, name, value) {
+                        x[[name]] <- value
+                        x
+                      },
+                      name=n, value=x[[n]])
+      }
+    } else {
+      ret <- list(x$data)
+      # The number of rows of groupid must match the length of the list.
+      groupid <- data.frame(1)[,c()]
     }
   }
   attr(ret, "groupid") <- groupid

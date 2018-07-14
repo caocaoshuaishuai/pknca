@@ -181,7 +181,38 @@ test_that("PKNCAdose model.frame", {
                info="Dosing must have unique values with time and group")
 })
 
-test_that("print.PKNCAdose", {
+test_that("print.PKNCAdose, single-subject", {
+  single_subject_dose_time_only <-
+    data.frame(time=0)
+  single_subject_dose_dose_only <-
+    data.frame(dose=1)
+  single_subject_dose_time_dose <-
+    data.frame(time=0,
+               dose=1)
+  expect_output(print(PKNCAdose(data=single_subject_dose_dose_only, formula=dose~.)),
+                regexp="Formula for dosing:\n dose ~ .\nNominal time column is not specified.\n\nData for dosing:\n dose exclude         route duration\n    1    <NA> extravascular        0",
+                fixed=TRUE)
+  expect_output(print(PKNCAdose(data=single_subject_dose_time_only, formula=~time)),
+                regexp="Formula for dosing:
+ ~time
+Nominal time column is not specified.
+
+Data for dosing:
+ time exclude         route duration
+    0    <NA> extravascular        0",
+                fixed=TRUE)
+  expect_output(print(PKNCAdose(data=single_subject_dose_time_dose, formula=dose~time)),
+                regexp="Formula for dosing:
+ dose ~ time
+Nominal time column is not specified.
+
+Data for dosing:
+ time dose exclude         route duration
+    0    1    <NA> extravascular        0",
+                fixed=TRUE)
+})
+
+test_that("print.PKNCAdose, multi-subject", {
   tmp.conc <- generate.conc(nsub=5, ntreat=2, time.points=0:24)
   tmp.dose <- generate.dose(tmp.conc)
   mydose <- PKNCAdose(tmp.dose, formula=dose~time|treatment+ID)
@@ -364,4 +395,26 @@ test_that("setDuration", {
                regexp="duration must be numeric without missing (NA) or infinite values, and all values must be >= 0",
                fixed=TRUE,
                info="Cannot give both duration as non-numeric")
+})
+
+test_that("split.PKNCAdose works with single-subject data", {
+  single_subject_dose_time_only <-
+    data.frame(time=0)
+  single_subject_dose_dose_only <-
+    data.frame(dose=1)
+  single_subject_dose_time_dose <-
+    data.frame(time=0,
+               dose=1)
+  my_dose_time_only <- PKNCAdose(single_subject_dose_dose_only, dose~.)
+  my_dose_dose_only <- PKNCAdose(single_subject_dose_time_only, ~time)
+  my_dose_time_dose <- PKNCAdose(single_subject_dose_time_dose, dose~time)
+  expect_equal(split.PKNCAdose(my_dose_time_only),
+               structure(list(my_dose_time_only$data),
+                         groupid=data.frame(1)[,c()]))
+  expect_equal(split.PKNCAdose(my_dose_dose_only),
+               structure(list(my_dose_dose_only$data),
+                         groupid=data.frame(1)[,c()]))
+  expect_equal(split.PKNCAdose(my_dose_time_dose),
+               structure(list(my_dose_time_dose$data),
+                         groupid=data.frame(1)[,c()]))
 })

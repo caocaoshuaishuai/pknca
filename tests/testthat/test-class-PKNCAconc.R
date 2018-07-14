@@ -3,6 +3,26 @@ context("Class generation-PKNCAconc")
 library(dplyr)
 source("generate.data.R")
 
+test_that("PKNCAconc single-subject", {
+  single_subject_conc <-
+    data.frame(conc=4:1,
+               time=0:3)
+  expect_equal(PKNCAconc(data=single_subject_conc, formula=conc~time),
+               structure(list(data=data.frame(conc=4:1,
+                                              time=0:3,
+                                              exclude=NA_character_,
+                                              volume=NA_real_,
+                                              duration=0,
+                                              stringsAsFactors=FALSE),
+                              formula=conc~time,
+                              subject=character(0),
+                              exclude="exclude",
+                              columns=list(volume="volume",
+                                           duration="duration")),
+                         class=c("PKNCAconc", "list")),
+               info="Single subject PKNCAconc is created correctly")
+})
+
 test_that("PKNCAconc", {
   tmp.conc <- generate.conc(nsub=5, ntreat=2, time.points=0:24)
   tmp.conc.analyte <- generate.conc(nsub=5, ntreat=2, time.points=0:24,
@@ -110,6 +130,17 @@ test_that("model frame and parameter extractions", {
                info="getGroups.PKNCAconc gives an error if a group name is not present")
 })
 
+test_that("split.PKNCAconc with single-subject data", {
+  single_subject_conc <-
+    data.frame(conc=4:1,
+               time=0:3)
+  my_conc <- PKNCAconc(data=single_subject_conc, formula=conc~time)
+  expect_equal(split(my_conc),
+               structure(list(my_conc$data),
+                         groupid=data.frame(1)[,c()]),
+               info="Split a single-subject dataset to a single entry with an empty groupid list")
+})
+
 test_that("split.PKNCAconc", {
   tmp.conc <- generate.conc(nsub=2, ntreat=2, time.points=0:24)
   myconc <- PKNCAconc(tmp.conc, formula=conc~time|treatment+ID)
@@ -157,7 +188,17 @@ test_that("split.PKNCAconc", {
                info="NA values in groups are kept not dropped")
 })
 
-test_that("print.PKNCAconc", {
+test_that("print.PKNCAconc single-subject", {
+  single_subject_conc <-
+    data.frame(conc=4:1,
+               time=0:3)
+  tmp_conc <- PKNCAconc(data=single_subject_conc, formula=conc~time)
+  expect_output(print(tmp_conc),
+                regexp="Formula for concentration:\n conc ~ time\nNominal time column is not specified.\n\nData for concentration:\n conc time exclude volume duration\n +4    0    <NA>     NA        0",
+                info="single-subject data prints correctly")
+})
+
+test_that("print.PKNCAconc multi-subject", {
   tmp.conc <- generate.conc(nsub=2, ntreat=2, time.points=0:24)
   myconc <- PKNCAconc(tmp.conc, formula=conc~time|treatment+ID)
 
