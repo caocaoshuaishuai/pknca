@@ -9,6 +9,7 @@ the dosing including dose amount and route.
 * New feature: the `time_calc()` function will help convert time
   values to be relative to events (such as calculating time after and
   before doses)
+* New feature: Simplified API for programming with PKNCAconc_api()
 
 # PKNCA 0.9.1
 
