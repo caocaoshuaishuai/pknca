@@ -202,9 +202,11 @@ getIndepVar.PKNCAconc <- function(x, ...) {
 getGroups.PKNCAconc <- function(object, form=formula(object), level,
                                 data=getData(object), sep) {
   grpnames <- all.vars(parseFormula(form)$groups)
-  if (!missing(level))
-    if (is.factor(level) | is.character(level)) {
+  if (!missing(level)) {
+    if (is.factor(level)) {
       level <- as.character(level)
+    }
+    if (is.character(level)) {
       if (any(!(level %in% grpnames)))
         stop("Not all levels are listed in the group names.  Missing levels are: ",
              paste(setdiff(level, grpnames), collapse=", "))
@@ -217,6 +219,7 @@ getGroups.PKNCAconc <- function(object, form=formula(object), level,
         grpnames <- grpnames[level]
       }
     }
+  }
   data[, grpnames, drop=FALSE]
 }
 
@@ -370,4 +373,17 @@ split.PKNCAconc <- function(x, f=getGroups(x), drop=TRUE, ...) {
   }
   attr(ret, "groupid") <- groupid
   ret
+}
+
+#' @importFrom digest sha1
+sha1.PKNCAconc <- function(x, digits=14L, zapsmall=7L, ..., algo="sha1") {
+  digest::sha1(
+    c(
+      sapply(
+        X=x, FUN=digest::sha1,
+        digits=digits, zapsmall=zapsmall, ..., algo=algo
+      )
+    ),
+    digits=digits, zapsmall=zapsmall, ..., algo=algo
+  )
 }

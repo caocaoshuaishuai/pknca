@@ -13,11 +13,15 @@ test_that("PKNCAresults generation", {
   mydata <- PKNCAdata(myconc, mydose)
   myresult <- pk.nca(mydata)
   
-  expect_equal(names(myresult),
-               c("result", "data", "exclude"),
-               info="Make sure that the result has the expected names (and only the expected names) in it.")
-  expect_true(checkProvenance(myresult),
-              info="Provenance exists and can be confirmed on results")
+  expect_equal(
+    names(myresult),
+    c("result", "data", "exclude"),
+    info="Make sure that the result has the expected names (and only the expected names) in it."
+  )
+  expect_true(
+    checkProvenance(myresult),
+    info="Provenance exists and can be confirmed on results"
+  )
   
   ## Test each of the pieces for myresult for accuracy
   

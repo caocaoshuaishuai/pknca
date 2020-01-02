@@ -15,7 +15,7 @@
 #' @family PKNCA objects
 #' @export
 PKNCAresults <- function(result, data, exclude) {
-  ## Add all the parts into the object
+  # Add all the parts into the object
   ret <- list(result=result,
               data=data)
   if (missing(exclude)) {
@@ -25,6 +25,19 @@ PKNCAresults <- function(result, data, exclude) {
   }
   class(ret) <- c("PKNCAresults", class(ret))
   addProvenance(ret)
+}
+
+#' @importFrom digest sha1
+sha1.PKNCAresults <- function(x, digits=14L, zapsmall=7L, ..., algo="sha1") {
+  hashes <-
+    sapply(
+      X=x, FUN=digest::sha1,
+      digits=digits, zapsmall=zapsmall, ..., algo=algo
+    )
+  #cat("rhashes: ", hashes, sep="\n")
+  ret <- digest::sha1(hashes, digits=digits, zapsmall=zapsmall, ..., algo=algo)
+  cat("fhash: ", ret, sep="\n")
+  ret
 }
 
 #' Extract the parameter results from a PKNCAresults and return them
@@ -64,9 +77,11 @@ getGroups.PKNCAresults <- function(object,
                                    data=object$result, sep) {
   ## Include the start time as a group; this may be dropped later
   grpnames <- c(all.vars(parseFormula(form)$groups), "start")
-  if (!missing(level))
-    if (is.factor(level) | is.character(level)) {
+  if (!missing(level)) {
+    if (is.factor(level)) {
       level <- as.character(level)
+    }
+    if (is.character(level)) {
       if (any(!(level %in% grpnames)))
         stop("Not all levels are listed in the group names.  Missing levels are: ",
              paste(setdiff(level, grpnames), collapse=", "))
@@ -78,6 +93,7 @@ getGroups.PKNCAresults <- function(object,
         grpnames <- grpnames[level]
       }
     }
+  }
   data[, grpnames, drop=FALSE]
 }
 

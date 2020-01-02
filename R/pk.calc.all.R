@@ -102,8 +102,8 @@ pk.nca <- function(data, verbose=FALSE) {
     }
     ## Calculate the results
     if (verbose) message("Starting NCA calculations.")
-    tmp.results <- list()
-    tmp.results[mask_has_interval] <-
+    tmp_results <- list()
+    tmp_results[mask_has_interval] <-
       parallel::mclapply(
         X=splitdata[mask_has_interval],
         FUN=pk.nca.intervals,
@@ -112,41 +112,44 @@ pk.nca <- function(data, verbose=FALSE) {
       )
     if (verbose) message("Combining completed results.")
     ## Put the group parameters with the results
-    for (i in seq_len(length(tmp.results))) {
+    for (i in seq_len(length(tmp_results))) {
       ## If no calculations were performed, the results are NULL.
-      if (!is.null(tmp.results[[i]])) {
+      if (!is.null(tmp_results[[i]])) {
         ## If calculations were performed, the results are non-NULL, add
         ## the grouping information to the results, if applicable.
         keep.group.names <- setdiff(names(attr(splitdata, "groupid")),
-                                    names(tmp.results[[i]]))
+                                    names(tmp_results[[i]]))
         if (length(keep.group.names) > 0) {
-          tmp.results[[i]] <-
+          tmp_results[[i]] <-
             cbind(attr(splitdata, "groupid")[i,keep.group.names,drop=FALSE],
-                  tmp.results[[i]])
+                  tmp_results[[i]])
         }
       }
     }
     ## Generate the outputs
-    results <- dplyr::bind_rows(tmp.results)
+    results <- dplyr::bind_rows(tmp_results)
     rownames(results) <- NULL
   }
-  PKNCAresults(result=results,
-               data=data,
-               exclude="exclude")
+  PKNCAresults(
+    result=results,
+    data=data,
+    exclude="exclude"
+  )
 }
 
-## Subset data down to just the times of interest and then pass it
-## further to the calculation routines.
-##
-## This is simply a helper for pk.nca
+# Subset data down to just the times of interest and then pass it
+# further to the calculation routines.
+#
+# This is simply a helper for pk.nca
+#' @importFrom dplyr bind_rows
 pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
   if (is.null(conc.dose$conc)) {
     ## No data; potentially placebo data (the warning would have
     ## already been generated from making the PKNCAdata object.
     return(NULL)
   }
-  ret <- data.frame()
-  all.intervals <- conc.dose$intervals
+  ret <- list()
+  all_intervals <- conc.dose$intervals
   pformula.conc <- parseFormula(conc.dose$conc)
   pformula.dose <- parseFormula(conc.dose$dose)
   shared.names <- all.vars(pformula.conc$groups)
@@ -181,15 +184,15 @@ pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
       # Remove rows to be excluded from all calculations
       is.na(normalize_exclude(conc.dose$dose$data[[conc.dose$dose$exclude]])),,
       drop=FALSE]
-  for (i in seq_len(nrow(all.intervals))) {
+  for (i in seq_len(nrow(all_intervals))) {
     ## Subset the data down to the group of current interest, and make 
     ## the first column of each the dependent variable and the second 
     ## column the independent variable.
     conc_data_group <-
       merge(conc_data_all,
-        all.intervals[
+        all_intervals[
           i,
-          intersect(shared.names, names(all.intervals)),
+          intersect(shared.names, names(all_intervals)),
           drop=FALSE])[,
                        c(col.conc,
                          col.time,
@@ -199,21 +202,21 @@ pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
                          col.duration.conc)]
     dose_data_group <-
       merge(dose_data_all,
-        all.intervals[
+        all_intervals[
           i,
-          intersect(shared.names, names(all.intervals)),
+          intersect(shared.names, names(all_intervals)),
           drop=FALSE])[,
                        c(col.dose,
                          col.time.dose,
                          col.duration.dose,
                          col.route)]
     ## Choose only times between the start and end.
-    mask.keep.conc <- (all.intervals$start[i] <= conc_data_group[[col.time]] &
-                         conc_data_group[[col.time]] <= all.intervals$end[i])
+    mask.keep.conc <- (all_intervals$start[i] <= conc_data_group[[col.time]] &
+                         conc_data_group[[col.time]] <= all_intervals$end[i])
     conc_data_interval <- conc_data_group[mask.keep.conc,]
     mask.keep.dose <- (is.na(dose_data_group[,col.time.dose]) |
-                         (all.intervals$start[i] <= dose_data_group[[col.time.dose]] &
-                            dose_data_group[[col.time.dose]] < all.intervals$end[i]))
+                         (all_intervals$start[i] <= dose_data_group[[col.time.dose]] &
+                            dose_data_group[[col.time.dose]] < all_intervals$end[i]))
     dose_data_interval <- dose_data_group[mask.keep.dose,]
     ## Sort the data in time order
     conc_data_interval <- conc_data_interval[order(conc_data_interval[[col.time]]),]
@@ -223,7 +226,7 @@ pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
       paste("Error with interval",
             paste(c(shared.names, c("start", "end")),
                   c(unlist(conc_data_all[1,shared.names]),
-                    unlist(all.intervals[i,c("start", "end")])),
+                    unlist(all_intervals[i,c("start", "end")])),
                   sep="=", collapse=", "))
     if (nrow(conc_data_interval) == 0) {
       warning(paste(error.preamble, "No data for interval", sep=": "))
@@ -250,7 +253,7 @@ pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
             duration.dose.group=dose_data_group[[col.duration.dose]],
             route.group=dose_data_group[[col.route]],
             # Generic data
-            interval=all.intervals[i, , drop=FALSE],
+            interval=all_intervals[i, , drop=FALSE],
             options=options)
           if (!is.null(col.include_half.life)) {
             args$include_half.life <- conc_data_interval[[col.include_half.life]]
@@ -266,14 +269,20 @@ pk.nca.intervals <- function(conc.dose, intervals, options, verbose=FALSE) {
           stop(e)
         })
       ## Add all the new data into the output
-      ret <- rbind(ret,
-                   cbind(all.intervals[i,c("start", "end")],
-                         conc_data_all[1, shared.names, drop=FALSE],
-                         calculated.interval,
-                         row.names=NULL))
+      ret <-
+        append(
+          ret,
+          list(
+            cbind(
+              all_intervals[i,c("start", "end")],
+              conc_data_all[1, shared.names, drop=FALSE],
+              calculated.interval,
+              row.names=NULL)
+          )
+        )
     }
   }
-  ret
+  dplyr::bind_rows(ret)
 }
 
 #' Compute all PK parameters for a single concentration-time data set
@@ -339,7 +348,7 @@ pk.nca.interval <- function(conc, time, volume, duration.conc,
   ## that are not listed for calculation.  Then loop over the
   ## calculations in order confirming what needs to be passed from a
   ## previous calculation to a later calculation.
-  all.intervals <- get.interval.cols()
+  all_intervals <- get.interval.cols()
   ## Set the dose to NA if its length is zero
   if (length(dose) == 0) {
     dose <- NA
@@ -348,81 +357,81 @@ pk.nca.interval <- function(conc, time, volume, duration.conc,
   }
   ## Make sure that we calculate all of the dependencies.  Do this in
   ## reverse order for dependencies of dependencies.
-  for (n in rev(names(all.intervals))) {
+  for (n in rev(names(all_intervals))) {
     if (interval[[1,n]]) {
-      for (deps in all.intervals[[n]]$depends) {
+      for (deps in all_intervals[[n]]$depends) {
         interval[1,deps] <- TRUE
       }
     }
   }
   ## Do the calculations
-  for (n in names(all.intervals))
-    if (interval[[1,n]] & !is.na(all.intervals[[n]]$FUN)) {
-      call.args <- list()
+  for (n in names(all_intervals))
+    if (interval[[1,n]] & !is.na(all_intervals[[n]]$FUN)) {
+      call_args <- list()
       exclude_from_argument <- character(0)
       ## Prepare to call the function by setting up its arguments.
       ## Ignore the "..." argument if it exists.
-      arglist <- setdiff(names(formals(get(all.intervals[[n]]$FUN))),
+      arglist <- setdiff(names(formals(get(all_intervals[[n]]$FUN))),
                          "...")
       arglist <- stats::setNames(object=as.list(arglist), arglist)
-      arglist[names(all.intervals[[n]]$formalsmap)] <- all.intervals[[n]]$formalsmap
+      arglist[names(all_intervals[[n]]$formalsmap)] <- all_intervals[[n]]$formalsmap
       # Drop arguments that were set to NULL by the formalsmap
       arglist <- arglist[!sapply(arglist, is.null)]
       for (arg_formal in names(arglist)) {
         arg_mapped <- arglist[[arg_formal]]
         if (arg_mapped == "conc") {
-          call.args[[arg_formal]] <- conc
+          call_args[[arg_formal]] <- conc
         } else if (arg_mapped == "time") {
           ## Realign the time to be relative to the start of the
           ## interval
-          call.args[[arg_formal]] <- time - interval$start[1]
+          call_args[[arg_formal]] <- time - interval$start[1]
         } else if (arg_mapped == "volume") {
-          call.args[[arg_formal]] <- volume
+          call_args[[arg_formal]] <- volume
         } else if (arg_mapped == "duration.conc") {
-          call.args[[arg_formal]] <- duration.conc
+          call_args[[arg_formal]] <- duration.conc
         } else if (arg_mapped == "dose") {
-          call.args[[arg_formal]] <- dose
+          call_args[[arg_formal]] <- dose
         } else if (arg_mapped == "time.dose") {
           ## Realign the time to be relative to the start of the
           ## interval
-          call.args[[arg_formal]] <- time.dose - interval$start[1]
+          call_args[[arg_formal]] <- time.dose - interval$start[1]
         } else if (arg_mapped == "duration.dose") {
-          call.args[[arg_formal]] <- duration.dose
+          call_args[[arg_formal]] <- duration.dose
         } else if (arg_mapped == "route") {
-          call.args[[arg_formal]] <- route
+          call_args[[arg_formal]] <- route
         } else if (arg_mapped == "conc.group") {
-          call.args[[arg_formal]] <- conc.group
+          call_args[[arg_formal]] <- conc.group
         } else if (arg_mapped == "time.group") {
           ## Realign the time to be relative to the start of the
           ## interval
-          call.args[[arg_formal]] <- time.group
+          call_args[[arg_formal]] <- time.group
         } else if (arg_mapped == "volume.group") {
-          call.args[[arg_formal]] <- volume.group
+          call_args[[arg_formal]] <- volume.group
         } else if (arg_mapped == "duration.conc.group") {
-          call.args[[arg_formal]] <- duration.conc.group
+          call_args[[arg_formal]] <- duration.conc.group
         } else if (arg_mapped == "dose.group") {
-          call.args[[arg_formal]] <- dose.group
+          call_args[[arg_formal]] <- dose.group
         } else if (arg_mapped == "time.dose.group") {
           ## Realign the time to be relative to the start of the
           ## interval
-          call.args[[arg_formal]] <- time.dose.group
+          call_args[[arg_formal]] <- time.dose.group
         } else if (arg_mapped == "duration.dose.group") {
-          call.args[[arg_formal]] <- duration.dose.group
+          call_args[[arg_formal]] <- duration.dose.group
         } else if (arg_mapped == "route.group") {
-          call.args[[arg_formal]] <- route.group
+          call_args[[arg_formal]] <- route.group
         } else if (arg_mapped %in% c("start", "end")) {
           ## Provide the start and end of the interval if they are requested
-          call.args[[arg_formal]] <- interval[1,arg_mapped]
+          call_args[[arg_formal]] <- interval[1,arg_mapped]
         } else if (arg_mapped == "options") {
-          call.args[[arg_formal]] <- options
+          call_args[[arg_formal]] <- options
         } else if (any(mask.arg <- ret$PPTESTCD %in% arg_mapped)) {
-          call.args[[arg_formal]] <- ret$PPORRES[mask.arg]
+          call_args[[arg_formal]] <- ret$PPORRES[mask.arg]
           exclude_from_argument <-
             c(exclude_from_argument, ret$exclude[mask.arg])
         } else {
           ## Give an error if there is not a default argument.
           ## FIXME: checking if the class is a name isn't perfect.  
-          if (class(formals(get(all.intervals[[n]]$FUN))[[arg_formal]]) == "name") {
+          if (class(formals(get(all_intervals[[n]]$FUN))[[arg_formal]]) == "name") {
             arg_text <-
               if (arg_formal == arg_mapped) {
                 sprintf("'%s'", arg_formal)
@@ -431,23 +440,23 @@ pk.nca.interval <- function(conc, time, volume, duration.conc,
               }
             stop(sprintf(
               "Cannot find argument %s for NCA function '%s'",
-              arg_text, all.intervals[[n]]$FUN))
+              arg_text, all_intervals[[n]]$FUN))
           }
         }
       }
       # Apply manual inclusion and exclusion
       if (n %in% "half.life") {
         if (!is.null(include_half.life)) {
-          call.args$conc <- call.args$conc[include_half.life]
-          call.args$time <- call.args$time[include_half.life]
-          call.args$manually.selected.points <- TRUE
+          call_args$conc <- call_args$conc[include_half.life]
+          call_args$time <- call_args$time[include_half.life]
+          call_args$manually.selected.points <- TRUE
         } else if (!is.null(exclude_half.life)) {
-          call.args$conc <- call.args$conc[!exclude_half.life]
-          call.args$time <- call.args$time[!exclude_half.life]
+          call_args$conc <- call_args$conc[!exclude_half.life]
+          call_args$time <- call_args$time[!exclude_half.life]
         }
       }
       # Do the calculation
-      tmp.result <- do.call(all.intervals[[n]]$FUN, call.args)
+      tmp.result <- do.call(all_intervals[[n]]$FUN, call_args)
       # The handling of the exclude column is documented in the
       # "Writing-Parameter-Functions.Rmd" vignette.  Document any changes to
       # this section of code there.

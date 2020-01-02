@@ -237,3 +237,6 @@ split.PKNCAdata <- function(x, ...) {
   }
   ret
 }
+
+#' @importFrom digest sha1
+sha1.PKNCAdata <- sha1.PKNCAconc

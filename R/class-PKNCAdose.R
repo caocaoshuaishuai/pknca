@@ -302,3 +302,6 @@ summary.PKNCAdose <- summary.PKNCAconc
 #' @rdname split.PKNCAconc
 #' @export
 split.PKNCAdose <- split.PKNCAconc
+
+#' @importFrom digest sha1
+sha1.PKNCAdata <- sha1.PKNCAconc
